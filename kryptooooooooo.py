@@ -14,14 +14,14 @@ from twilio.rest import Client
 
 class VirtualAssistantGUI:
     def __init__(self):
-        self.wakeup_word = "crypto"  # Add a wakeup word
+        self.wakeup_word = "crypto"
         self.is_listening = False
         self.recognizer = sr.Recognizer()
         self.engine = pyttsx3.init()
         self.root = tk.Tk()
         self.root.title("Virtual Assistant")
         self.root.geometry("800x600")
-        self.root.configure(bg='#000000')  # Set background color to black
+        self.root.configure(bg='#000000')
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -41,10 +41,6 @@ class VirtualAssistantGUI:
         )
         self.btn_stop.pack(pady=10)
         self.btn_stop["state"] = "disabled"
-
-        self.is_listening = False
-        self.recognizer = sr.Recognizer()
-        self.engine = pyttsx3.init()
 
         self.configure_commands()
 
@@ -66,7 +62,7 @@ class VirtualAssistantGUI:
         self.speak("Hello! How can I assist you today?")
 
     def play_song(self, song):
-        self.speak(f'playing {song}')
+        self.speak(f'Playing {song}')
         pywhatkit.playonyt(song)
 
     def say_name(self):
@@ -74,7 +70,7 @@ class VirtualAssistantGUI:
 
     def get_time(self):
         time = datetime.datetime.now().strftime('%I:%M %p')
-        self.speak('current time is ' + time)
+        self.speak(f'The current time is {time}')
 
     def tell_joke(self):
         joke = pyjokes.get_joke()
@@ -85,28 +81,32 @@ class VirtualAssistantGUI:
         self.root.destroy()
 
     def get_wikipedia_info(self, topic):
+        print(f"Fetching Wikipedia info for topic: {topic}")  # Debug statement
         try:
-            info = wikipedia.summary(topic, sentences=2)  # Fetch the summary (2 sentences)
+            info = wikipedia.summary(topic, sentences=2)
             self.speak(info)
         except wikipedia.DisambiguationError as e:
-            self.speak(f"Multiple results found for {topic}. Please be more specific.")
-        except wikipedia.PageError:
-            self.speak(f"Sorry, I couldn't find any information on {topic}.")
+            self.speak("Multiple results found. Please be more specific.")
+            print(f"DisambiguationError: {e}")
+        except wikipedia.PageError as e:
+            self.speak(f"Sorry, no information found on {topic}.")
+            print(f"PageError: {e}")
         except Exception as e:
-            self.speak(f"An error occurred while fetching information: {e}")
+            self.speak(f"An error occurred: {e}")
+            print(f"Exception: {e}")
 
     def send_email(self):
         subject = 'Test'
         body = "This is a test email"
-        to = "rs20020717@gmail.com"  # Replace with the actual recipient email address
+        to = "rs20020717@gmail.com"
 
         msg = MIMEMultipart()
         msg.attach(MIMEText(body, 'plain'))
         msg['subject'] = subject
         msg['to'] = to
-        user = "kryp17to@gmail.com"  # Replace with your actual Gmail email address
+        user = "kryp17to@gmail.com"
         msg['from'] = user
-        password = "zobeigzsgmzdxskl"  # Replace with your actual Gmail password
+        password = "zobeigzsgmzdxskl"
 
         try:
             server = smtplib.SMTP("smtp.gmail.com", 587)
@@ -120,14 +120,14 @@ class VirtualAssistantGUI:
             self.speak('Error sending email')
 
     def make_call(self):
-        account_sid = "AC30a442e846481e2e9dcdf5cb1f75cdc8"  # Replace with your Twilio account SID
-        auth_token = "1406e1c7df1068680511699f7aaacf39"  # Replace with your Twilio authentication token
+        account_sid = "AC30a442e846481e2e9dcdf5cb1f75cdc8"
+        auth_token = "1406e1c7df1068680511699f7aaacf39"
         client = Client(account_sid, auth_token)
 
         call = client.calls.create(
             twiml='<Response><Say>Hello</Say></Response>',
-            to='+918586883992',  # Replace with the recipient's phone number
-            from_="+18065573779"  # Replace with your Twilio phone number
+            to='+918586883992',
+            from_="+18065573779"
         )
 
         self.speak('Making a call')
@@ -141,7 +141,7 @@ class VirtualAssistantGUI:
         while self.is_listening:
             with sr.Microphone() as source:
                 self.speak("Listening for commands...")
-                print('listening')
+                print('Listening')
                 self.recognizer.adjust_for_ambient_noise(source)
                 audio = self.recognizer.listen(source)
 
@@ -149,7 +149,6 @@ class VirtualAssistantGUI:
                 command = self.recognizer.recognize_google(audio).lower()
                 print("You said:", command)
 
-                # Check if the command starts with the wakeup word
                 if command.startswith(self.wakeup_word):
                     self.process_command(command[len(self.wakeup_word):].strip())
                 else:
@@ -157,7 +156,7 @@ class VirtualAssistantGUI:
                     print("Sorry, I didn't hear the wakeup word.")
                     
             except sr.UnknownValueError:
-                self.speak("Sorry, I couldn't understand your command. Thank you for having me")
+                self.speak("Sorry, I couldn't understand your command.")
                 print("Sorry, I couldn't understand your command.")
             except sr.RequestError as e:
                 print(f"Sorry, there was an error with the speech recognition service: {e}")
@@ -178,18 +177,20 @@ class VirtualAssistantGUI:
         self.btn_stop["state"] = "disabled"
 
     def process_command(self, command):
+        print(f"Processing command: {command}")  # Debug statement
         for keyword, function in self.commands.items():
-            if keyword in command:
-                if 'play' in keyword:
-                    function(command.replace('play', '').strip())
-                elif 'what is ' in keyword or 'who is ' in keyword:
-                    topic = command.replace(keyword, '').strip()
-                    function(topic)
-                else:
+            if command.startswith(keyword):
+                argument = command[len(keyword):].strip()
+                if keyword in ['send email', 'goodbye', 'make a call', 'tell me a joke', 'what is your name', 'time', 'hello']:
+                    # Call functions that do not require arguments
                     function()
-                break
-        else:
-            self.speak("I'm not sure how to respond to that.")
+                elif argument:
+                    # Call functions that require arguments
+                    function(argument)
+                else:
+                    self.speak("I need more information to process this command.")
+                return
+        self.speak("I'm not sure how to respond to that.")
 
 if __name__ == "__main__":
     assistant_gui = VirtualAssistantGUI()
