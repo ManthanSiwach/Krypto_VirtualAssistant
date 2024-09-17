@@ -14,6 +14,10 @@ from twilio.rest import Client
 
 class VirtualAssistantGUI:
     def __init__(self):
+        self.wakeup_word = "crypto"  # Add a wakeup word
+        self.is_listening = False
+        self.recognizer = sr.Recognizer()
+        self.engine = pyttsx3.init()
         self.root = tk.Tk()
         self.root.title("Virtual Assistant")
         self.root.geometry("800x600")
@@ -32,13 +36,17 @@ class VirtualAssistantGUI:
         )
         self.btn_listen.pack(pady=10)
 
+        self.btn_stop = ttk.Button(
+            self.root, text="Stop Listening", command=self.stop_listen, style="TButton"
+        )
+        self.btn_stop.pack(pady=10)
+        self.btn_stop["state"] = "disabled"
+
         self.is_listening = False
         self.recognizer = sr.Recognizer()
         self.engine = pyttsx3.init()
 
         self.configure_commands()
-
-        self.listen_thread = None
 
     def configure_commands(self):
         self.commands = {
@@ -47,7 +55,7 @@ class VirtualAssistantGUI:
             "what is your name": self.say_name,
             "time": self.get_time,
             "tell me a joke": self.tell_joke,
-            "bye": self.say_goodbye,
+            "goodbye": self.say_goodbye,
             "send email": self.send_email,
             "make a call": self.make_call,
             "what is": self.get_wikipedia_info,
@@ -76,22 +84,29 @@ class VirtualAssistantGUI:
         self.speak("Goodbye!")
         self.root.destroy()
 
-    def get_wikipedia_info(self, person):
-        info = wikipedia.summary(person, 2)
-        self.speak(info)
+    def get_wikipedia_info(self, topic):
+        try:
+            info = wikipedia.summary(topic, sentences=2)  # Fetch the summary (2 sentences)
+            self.speak(info)
+        except wikipedia.DisambiguationError as e:
+            self.speak(f"Multiple results found for {topic}. Please be more specific.")
+        except wikipedia.PageError:
+            self.speak(f"Sorry, I couldn't find any information on {topic}.")
+        except Exception as e:
+            self.speak(f"An error occurred while fetching information: {e}")
 
     def send_email(self):
         subject = 'Test'
         body = "This is a test email"
-        to = "recipient@example.com"  # Replace with the actual recipient email address
+        to = "rs20020717@gmail.com"  # Replace with the actual recipient email address
 
         msg = MIMEMultipart()
         msg.attach(MIMEText(body, 'plain'))
         msg['subject'] = subject
         msg['to'] = to
-        user = "your_email@gmail.com"  # Replace with your actual Gmail email address
+        user = "kryp17to@gmail.com"  # Replace with your actual Gmail email address
         msg['from'] = user
-        password = "your_email_password"  # Replace with your actual Gmail password
+        password = "zobeigzsgmzdxskl"  # Replace with your actual Gmail password
 
         try:
             server = smtplib.SMTP("smtp.gmail.com", 587)
@@ -99,21 +114,20 @@ class VirtualAssistantGUI:
             server.login(user, password)
             server.sendmail(user, to, msg.as_string())
             server.quit()
-            print('Email sent successfully')
             self.speak('Email sent')
         except Exception as e:
             print(f"Error sending email: {e}")
             self.speak('Error sending email')
 
     def make_call(self):
-        account_sid = "your_account_sid"  # Replace with your Twilio account SID
-        auth_token = "your_auth_token"  # Replace with your Twilio authentication token
-        client = Client(account_sid, auth_token)  # Initialize the Twilio Client
+        account_sid = "AC30a442e846481e2e9dcdf5cb1f75cdc8"  # Replace with your Twilio account SID
+        auth_token = "1406e1c7df1068680511699f7aaacf39"  # Replace with your Twilio authentication token
+        client = Client(account_sid, auth_token)
 
         call = client.calls.create(
             twiml='<Response><Say>Hello</Say></Response>',
-            to='+1234567890',  # Replace with the recipient's phone number
-            from_="+0987654321"  # Replace with your Twilio phone number
+            to='+918586883992',  # Replace with the recipient's phone number
+            from_="+18065573779"  # Replace with your Twilio phone number
         )
 
         self.speak('Making a call')
@@ -132,9 +146,16 @@ class VirtualAssistantGUI:
                 audio = self.recognizer.listen(source)
 
             try:
-                command = self.recognizer.recognize_google(audio)
+                command = self.recognizer.recognize_google(audio).lower()
                 print("You said:", command)
-                self.process_command(command.lower())
+
+                # Check if the command starts with the wakeup word
+                if command.startswith(self.wakeup_word):
+                    self.process_command(command[len(self.wakeup_word):].strip())
+                else:
+                    self.speak("Sorry, I didn't hear the wakeup word.")
+                    print("Sorry, I didn't hear the wakeup word.")
+                    
             except sr.UnknownValueError:
                 self.speak("Sorry, I couldn't understand your command. Thank you for having me")
                 print("Sorry, I couldn't understand your command.")
@@ -144,12 +165,17 @@ class VirtualAssistantGUI:
     def toggle_listen(self):
         if not self.is_listening:
             self.is_listening = True
-            self.btn_listen["text"] = "Listening..."
+            self.btn_listen["state"] = "disabled"
+            self.btn_stop["state"] = "normal"
             self.listen_thread = Thread(target=self.listen_thread)
             self.listen_thread.start()
         else:
-            self.is_listening = False
-            self.btn_listen["text"] = "Start Listening"
+            self.stop_listen()
+
+    def stop_listen(self):
+        self.is_listening = False
+        self.btn_listen["state"] = "normal"
+        self.btn_stop["state"] = "disabled"
 
     def process_command(self, command):
         for keyword, function in self.commands.items():
@@ -157,13 +183,13 @@ class VirtualAssistantGUI:
                 if 'play' in keyword:
                     function(command.replace('play', '').strip())
                 elif 'what is ' in keyword or 'who is ' in keyword:
-                    function(command.replace(keyword, '').strip())
+                    topic = command.replace(keyword, '').strip()
+                    function(topic)
                 else:
                     function()
                 break
         else:
             self.speak("I'm not sure how to respond to that.")
-
 
 if __name__ == "__main__":
     assistant_gui = VirtualAssistantGUI()
